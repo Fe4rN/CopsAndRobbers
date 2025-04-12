@@ -166,38 +166,54 @@ public class Controller : MonoBehaviour
 
     public void RobberTurn()
     {
-        clickedTile = robber.GetComponent<RobberMove>().currentTile;
-        tiles[clickedTile].current = true;
+        int robberTile = robber.GetComponent<RobberMove>().currentTile;
+        tiles[robberTile].current = true;
+
+        // Encuentra casillas alcanzables desde la posición actual del ladrón
         FindSelectableTiles(false);
 
         List<Tile> opciones = new List<Tile>();
 
         foreach (Tile t in tiles)
         {
-            if (t.selectable && t.numTile != clickedTile)
+            if (t.selectable)
             {
                 opciones.Add(t);
             }
         }
 
-        // Elegimos una casilla aleatoria de las opciones disponibles
-        if (opciones.Count > 0)
+        if (opciones.Count == 0)
         {
-            int index = UnityEngine.Random.Range(0, opciones.Count);
-            Tile destino = opciones[index];
-
-            // Mover al ladrón
-            robber.GetComponent<RobberMove>().MoveToTile(destino);
-
-            // Actualizar la posición actual del ladrón
-            robber.GetComponent<RobberMove>().currentTile = destino.numTile;
+            Debug.Log("El ladrón no tiene casillas alcanzables.");
+            return;
         }
-        else
+
+        // Buscar la casilla más lejana de los dos policías
+        int cop1Tile = cops[0].GetComponent<CopMove>().currentTile;
+        int cop2Tile = cops[1].GetComponent<CopMove>().currentTile;
+
+        Tile mejorOpcion = opciones[0];
+        int mejorDistancia = -1;
+
+        foreach (Tile t in opciones)
         {
-            Debug.Log("El ladrón no tiene casillas alcanzables a las que moverse.");
+            int distCop1 = CalcularDistancia(cop1Tile, t.numTile);
+            int distCop2 = CalcularDistancia(cop2Tile, t.numTile);
+
+            int minDist = Mathf.Min(distCop1, distCop2);
+
+            if (minDist > mejorDistancia)
+            {
+                mejorDistancia = minDist;
+                mejorOpcion = t;
+            }
         }
-        robber.GetComponent<RobberMove>().MoveToTile(tiles[robber.GetComponent<RobberMove>().currentTile]);
+
+        // Mover al ladrón a la mejor opción
+        robber.GetComponent<RobberMove>().MoveToTile(mejorOpcion);
+        robber.GetComponent<RobberMove>().currentTile = mejorOpcion.numTile;
     }
+
 
     public void EndGame(bool end)
     {
@@ -302,13 +318,34 @@ public class Controller : MonoBehaviour
         }
     }
 
+    private int CalcularDistancia(int origen, int destino)
+    {
+        // BFS simple para encontrar la distancia entre dos casillas
+        Queue<int> queue = new Queue<int>();
+        Dictionary<int, int> dist = new Dictionary<int, int>();
 
+        queue.Enqueue(origen);
+        dist[origen] = 0;
 
+        while (queue.Count > 0)
+        {
+            int actual = queue.Dequeue();
 
+            if (actual == destino)
+            {
+                return dist[actual];
+            }
 
+            foreach (int vecino in tiles[actual].adjacency)
+            {
+                if (!dist.ContainsKey(vecino))
+                {
+                    dist[vecino] = dist[actual] + 1;
+                    queue.Enqueue(vecino);
+                }
+            }
+        }
 
-
-
-
-
+        return int.MaxValue; // No se puede alcanzar (no debería ocurrir)
+    }
 }
